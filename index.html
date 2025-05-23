@@ -2,85 +2,88 @@
 <html lang="cs">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dárky</title>
+  <title>Wishlist</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f9f9f9;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f7f7fb;
+      color: #333;
+      padding: 2rem;
+      max-width: 800px;
+      margin: auto;
+    }
+    h1 {
+      color: #2a2a72;
     }
     .item {
-      margin-bottom: 40px;
-      padding: 15px;
-      background: white;
+      background: #fff;
+      padding: 1rem;
+      margin-bottom: 1rem;
       border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     .item img {
-      width: 300px;
-      height: auto;
-      display: block;
-      margin-bottom: 10px;
+      max-width: 100%;
+      border-radius: 8px;
+    }
+    .item h2 {
+      margin: 0.5rem 0;
     }
     .item a {
-      font-size: 20px;
       color: #0056b3;
       text-decoration: none;
-      display: block;
-      margin-bottom: 5px;
     }
     .item a:hover {
       text-decoration: underline;
     }
-    .price {
-      font-weight: bold;
+    .loader {
+      font-style: italic;
+      color: #666;
     }
   </style>
 </head>
 <body>
-  <h1>Wishlist</h1>
-  <div id="wishlist"></div>
+
+  <h1>Můj wishlist!</h1>
+  <div id="wishlist-content" class="loader">Načítavam obsah...</div>
 
   <script>
-    async function loadWishlist() {
-      const url = 'https://raw.githubusercontent.com/4ME280-Webdesign-a-uzivatelska-rozhrani/ouzf00-wishlist/main/wishlist.md';
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Nepodařilo se načíst wishlist.');
-        const text = await res.text();
-        const container = document.getElementById('wishlist');
+    const markdownUrl = 'https://cdn.jsdelivr.net/gh/4ME280-Webdesign-a-uzivatelska-rozhrani/ouzf00-wishlist@main/wishlist.md';
 
-        const items = text.split(/^- /gm).slice(1);
-        items.forEach(item => {
-          const lines = item.trim().split('\n');
-          const firstLine = lines[0];
-          const imageLine = lines[1] || '';
+    fetch(markdownUrl)
+      .then(res => {
+        if (!res.ok) throw new Error('Chyba pri načítaní.');
+        return res.text();
+      })
+      .then(text => {
+        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '').map(line => line.replace(/^[-\s]+/, ''));
+        const container = document.getElementById('wishlist-content');
+        container.classList.remove('loader');
+        container.innerHTML = '';
 
-          const linkMatch = firstLine.match(/\[(.*?)\]\((.*?)\)\s+[–-]\s+(.*)/);
-          const imageMatch = imageLine.match(/!\[(.*?)\]\((.*?)\)/);
+        for (let i = 0; i < lines.length; i += 4) {
+          const name = lines[i]?.trim();
+          const link = lines[i + 1]?.trim();
+          const price = lines[i + 2]?.trim();
+          const image = lines[i + 3]?.trim();
 
-          if (linkMatch && imageMatch) {
-            const [, title, link, price] = linkMatch;
-            const [, alt, imgSrc] = imageMatch;
-
-            const div = document.createElement('div');
-            div.className = 'item';
-            div.innerHTML = `
-              <img src="${imgSrc}" alt="${alt}" />
-              <a href="${link}" target="_blank">${title}</a>
-              <div class="price">${price}</div>
+          if (name && link && price && image) {
+            const item = document.createElement('div');
+            item.className = 'item';
+            item.innerHTML = `
+              <img src="${image}" alt="${name}">
+              <h2><a href="${link}" target="_blank">${name}</a></h2>
+              <p><strong>${price}</strong></p>
             `;
-            container.appendChild(div);
+            container.appendChild(item);
           }
-        });
-      } catch (error) {
-        console.error(error);
-        document.getElementById('wishlist').textContent = 'Chyba při načítání wishlistu.';
-      }
-    }
-
-    loadWishlist();
+        }
+      })
+      .catch(err => {
+        document.getElementById('wishlist-content').innerText = 'Nepodarilo sa načítať wishlist.';
+        console.error(err);
+      });
   </script>
+
 </body>
 </html>
