@@ -10,7 +10,7 @@
     .item { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
     .item img { max-width: 150px; display: block; margin-bottom: 1rem; }
     .item input { width: 100%; padding: 0.5rem; margin: 0.5rem 0; }
-    .item button { padding: 0.5rem 1rem; }
+    .item button { padding: 0.5rem 1rem; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -19,7 +19,6 @@
   <div id="wishlist">Načítám...</div>
 
   <script>
-    // 🔧 Tvoje Firebase konfigurace
     const firebaseConfig = {
       apiKey: "AIzaSyAGm0CKcbY3ndTzjngKkguvE8oyd1etGB4",
       authDomain: "wishlist-9af2c.firebaseapp.com",
@@ -31,7 +30,6 @@
       measurementId: "G-VSMWT44RFG"
     };
 
-    // Inicializace Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -43,16 +41,17 @@
         wishlist.forEach((item, i) => {
           const div = document.createElement('div');
           div.className = 'item';
+          const isReserved = item.reserved_by && item.reserved_by.trim() !== '';
           div.innerHTML = `
             <h2>${item.product}</h2>
             <img src="${item.image}">
             <p><a href="${item.url}" target="_blank">Koupit</a></p>
             <p><strong>Cena:</strong> ${item.price} Kč</p>
-            <p><strong>Rezervoval:</strong> ${item.reserved_by || '—'}</p>
-            ${item.reserved_by ? '' : `
+            <p><strong>Rezervoval:</strong> ${isReserved ? `<em>${item.reserved_by}</em> <button onclick="unreserve(${i})">Zrušit</button>` : '—'}</p>
+            ${!isReserved ? `
               <input type="text" id="input-${i}" placeholder="Tvé jméno">
               <button onclick="reserve(${i})">Rezervovat</button>
-            `}
+            ` : ''}
           `;
           container.appendChild(div);
         });
@@ -69,6 +68,18 @@
         loadWishlist();
       }).catch(err => {
         alert("Nepodařilo se uložit.");
+        console.error(err);
+      });
+    }
+
+    function unreserve(index) {
+      if (!confirm("Opravdu chceš zrušit rezervaci tohoto dárku?")) return;
+      window.currentWishlist[index].reserved_by = "";
+      db.ref('wishlist').set(window.currentWishlist).then(() => {
+        alert("Rezervace byla zrušena.");
+        loadWishlist();
+      }).catch(err => {
+        alert("Nepodařilo se uložit změnu.");
         console.error(err);
       });
     }
