@@ -2,99 +2,75 @@
 <html lang="cs">
 <head>
   <meta charset="UTF-8">
-  <title>Wishlist</title>
+  <title>🎁 Wishlist</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 2rem;
-    }
-    .item {
-      border: 1px solid #ccc;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      border-radius: 8px;
-    }
-    .item img {
-      max-width: 150px;
-      display: block;
-      margin-bottom: 1rem;
-    }
-    .item input[type="text"] {
-      width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-    .item button {
-      padding: 0.5rem 1rem;
-    }
+    body { font-family: sans-serif; padding: 2rem; }
+    .item { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+    .item img { max-width: 150px; display: block; margin-bottom: 1rem; }
+    .item input { width: 100%; padding: 0.5rem; margin: 0.5rem 0; }
+    .item button { padding: 0.5rem 1rem; }
   </style>
 </head>
 <body>
 
   <h1>🎁 Wishlist</h1>
-  <div id="wishlist"></div>
+  <div id="wishlist">Načítám...</div>
 
   <script>
-    const BIN_ID = '683041678561e97a501a7012';
-    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-    const MASTER_KEY = '$2a$10$mB1CyGfL.UPp/1DBysyX0ePq2dRYkNB2GwT8grubkVx6Y4oPQtd5u';
+    // 🔧 Tvoje Firebase konfigurace
+    const firebaseConfig = {
+      apiKey: "AIzaSyAGm0CKcbY3ndTzjngKkguvE8oyd1etGB4",
+      authDomain: "wishlist-9af2c.firebaseapp.com",
+      databaseURL: "https://wishlist-9af2c-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "wishlist-9af2c",
+      storageBucket: "wishlist-9af2c.firebasestorage.app",
+      messagingSenderId: "1000545004404",
+      appId: "1:1000545004404:web:adefce6e86c226512b9a21",
+      measurementId: "G-VSMWT44RFG"
+    };
 
-    async function loadWishlist() {
-      const res = await fetch(API_URL, {
-        headers: {
-          'X-Master-Key': MASTER_KEY
-        }
-      });
-      const data = await res.json();
-      renderWishlist(data.record.wishlist);
-    }
+    // Inicializace Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    function renderWishlist(wishlist) {
+    function loadWishlist() {
       const container = document.getElementById('wishlist');
-      wishlist.forEach((item, index) => {
-        const div = document.createElement('div');
-        div.className = 'item';
-
-        div.innerHTML = `
-          <h2>${item.product}</h2>
-          <img src="${item.image}" alt="${item.product}">
-          <p><a href="${item.url}" target="_blank">Odkaz na produkt</a></p>
-          <p><strong>Cena:</strong> ${item.price}</p>
-          <p><strong>Rezervováno:</strong> <em>${item.reserved_by ?? '—'}</em></p>
-          <input type="text" placeholder="Zadej své jméno" id="input-${index}">
-          <button onclick="reserveGift(${index})">Rezervovat</button>
-        `;
-        container.appendChild(div);
+      db.ref('wishlist').once('value', snapshot => {
+        const wishlist = snapshot.val() || [];
+        container.innerHTML = '';
+        wishlist.forEach((item, i) => {
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.innerHTML = `
+            <h2>${item.product}</h2>
+            <img src="${item.image}">
+            <p><a href="${item.url}" target="_blank">Koupit</a></p>
+            <p><strong>Cena:</strong> ${item.price} Kč</p>
+            <p><strong>Rezervoval:</strong> ${item.reserved_by || '—'}</p>
+            ${item.reserved_by ? '' : `
+              <input type="text" id="input-${i}" placeholder="Tvé jméno">
+              <button onclick="reserve(${i})">Rezervovat</button>
+            `}
+          `;
+          container.appendChild(div);
+        });
+        window.currentWishlist = wishlist;
       });
-
-      window.currentWishlist = wishlist;
     }
 
-    async function reserveGift(index) {
+    function reserve(index) {
       const name = document.getElementById(`input-${index}`).value.trim();
-      if (!name) {
-        alert('Zadej své jméno.');
-        return;
-      }
-
+      if (!name) return alert("Zadej jméno.");
       window.currentWishlist[index].reserved_by = name;
-
-      const res = await fetch(API_URL, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': MASTER_KEY
-        },
-        body: JSON.stringify({ wishlist: window.currentWishlist })
+      db.ref('wishlist').set(window.currentWishlist).then(() => {
+        alert("Dárek rezervován!");
+        loadWishlist();
+      }).catch(err => {
+        alert("Nepodařilo se uložit.");
+        console.error(err);
       });
-
-      if (res.ok) {
-        alert('Dárek byl úspěšně rezervován.');
-        location.reload();
-      } else {
-        alert('Nepodařilo se uložit. Zkontroluj klíč nebo síť.');
-      }
     }
 
     loadWishlist();
