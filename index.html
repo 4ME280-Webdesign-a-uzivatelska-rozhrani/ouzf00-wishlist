@@ -3,33 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <title>🎁 Wishlist</title>
-  <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    .item { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
-    .item img { max-width: 150px; display: block; margin-bottom: 1rem; }
-    .item input { width: 100%; padding: 0.5rem; margin: 0.5rem 0; }
-    .item button { padding: 0.5rem 1rem; margin-right: 0.5rem; }
-  </style>
-</head>
-<body>
-
-  <h1>🎁 Wishlist</h1>
-  <button id="loginBtn">Přihlásit se Googlem</button>
-  <button id="logoutBtn" style="display:none">Odhlásit se</button>
-  <div id="userInfo"></div>
-  <div id="wishlist"></div>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
     import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDyQh9B9FtwEDHnooTBOkx1k5kjvL3Kt-o",
       authDomain: "wishlist2-d4fb9.firebaseapp.com",
       databaseURL: "https://wishlist2-d4fb9-default-rtdb.europe-west1.firebasedatabase.app",
       projectId: "wishlist2-d4fb9",
-      storageBucket: "wishlist2-d4fb9.firebasestorage.app",
+      storageBucket: "wishlist2-d4fb9.appspot.com",
       messagingSenderId: "1066131146354",
       appId: "1:1066131146354:web:2aed5adf2507c2958124eb",
       measurementId: "G-TCW2W28FVS"
@@ -37,48 +21,24 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    const auth = getAuth();
-    const provider = new GoogleAuthProvider();
+    const auth = getAuth(app);
 
-    document.getElementById('loginBtn').onclick = () => signInWithPopup(auth, provider);
-    document.getElementById('logoutBtn').onclick = () => signOut(auth);
-
-    let currentWishlist = [];
-    let currentUserId = "";
-
-    onAuthStateChanged(auth, user => {
-      const userInfo = document.getElementById('userInfo');
-      if (user) {
-        userInfo.textContent = `Přihlášen jako: ${user.displayName}`;
-        document.getElementById('loginBtn').style.display = 'none';
-        document.getElementById('logoutBtn').style.display = 'inline-block';
-        currentUserId = user.uid;
-        loadWishlist(user.uid);
-      } else {
-        userInfo.textContent = '';
-        document.getElementById('loginBtn').style.display = 'inline-block';
-        document.getElementById('logoutBtn').style.display = 'none';
-        document.getElementById('wishlist').innerHTML = '<p>Pro zobrazení se přihlas.</p>';
-        currentWishlist = [];
-        currentUserId = "";
-      }
-    });
+    let currentUID = null;
 
     function loadWishlist(uid) {
       const container = document.getElementById('wishlist');
-      const userWishlistRef = ref(db, `${uid}/wishlist`);
-      get(userWishlistRef).then(snapshot => {
+      const wishlistRef = ref(db, 'wishlist/' + uid);
+      get(wishlistRef).then(snapshot => {
         const wishlist = snapshot.val() || [];
-        currentWishlist = wishlist;
         container.innerHTML = '';
         wishlist.forEach((item, i) => {
           const div = document.createElement('div');
           div.className = 'item';
           const isReserved = item.reserved_by && item.reserved_by.trim() !== '';
           div.innerHTML = `
-            <h2>${item.name}</h2>
+            <h2>${item.product}</h2>
             <img src="${item.image}">
-            <p><a href="${item.link}" target="_blank">Koupit</a></p>
+            <p><a href="${item.url}" target="_blank">Koupit</a></p>
             <p><strong>Cena:</strong> ${item.price}</p>
             <p><strong>Rezervoval:</strong> ${isReserved ? `<em>${item.reserved_by}</em> <button onclick="unreserve(${i})">Zrušit</button>` : '—'}</p>
             ${!isReserved ? `
@@ -88,37 +48,84 @@
           `;
           container.appendChild(div);
         });
+        window.currentWishlist = wishlist;
       });
     }
 
     window.reserve = function(index) {
       const name = document.getElementById(`input-${index}`).value.trim();
       if (!name) return alert("Zadej jméno.");
-      if (!currentUserId) return alert("Nejsi přihlášen.");
-      currentWishlist[index].reserved_by = name;
-      const userWishlistRef = ref(db, `${currentUserId}/wishlist`);
-      set(userWishlistRef, currentWishlist).then(() => {
+      window.currentWishlist[index].reserved_by = name;
+      set(ref(db, 'wishlist/' + currentUID), window.currentWishlist).then(() => {
         alert("Dárek rezervován!");
-        loadWishlist(currentUserId);
-      }).catch(err => {
-        alert("Nepodařilo se uložit.");
-        console.error(err);
+        loadWishlist(currentUID);
       });
-    };
+    }
 
     window.unreserve = function(index) {
       if (!confirm("Opravdu chceš zrušit rezervaci?")) return;
-      if (!currentUserId) return alert("Nejsi přihlášen.");
-      currentWishlist[index].reserved_by = "";
-      const userWishlistRef = ref(db, `${currentUserId}/wishlist`);
-      set(userWishlistRef, currentWishlist).then(() => {
+      window.currentWishlist[index].reserved_by = "";
+      set(ref(db, 'wishlist/' + currentUID), window.currentWishlist).then(() => {
         alert("Rezervace byla zrušena.");
-        loadWishlist(currentUserId);
-      }).catch(err => {
-        alert("Nepodařilo se uložit.");
-        console.error(err);
+        loadWishlist(currentUID);
       });
-    };
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('login-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = e.target.email.value;
+        const password = e.target.password.value;
+        signInWithEmailAndPassword(auth, email, password)
+          .then(userCredential => {
+            currentUID = userCredential.user.uid;
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('logout').style.display = 'block';
+            loadWishlist(currentUID);
+          })
+          .catch(error => alert("Přihlášení selhalo: " + error.message));
+      });
+
+      document.getElementById('logout-btn').addEventListener('click', () => {
+        signOut(auth).then(() => {
+          location.reload();
+        });
+      });
+
+      onAuthStateChanged(auth, user => {
+        if (user) {
+          currentUID = user.uid;
+          document.getElementById('login').style.display = 'none';
+          document.getElementById('logout').style.display = 'block';
+          loadWishlist(currentUID);
+        }
+      });
+    });
   </script>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    .item { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+    .item img { max-width: 150px; display: block; margin-bottom: 1rem; }
+    .item input { width: 100%; padding: 0.5rem; margin: 0.5rem 0; }
+    .item button { padding: 0.5rem 1rem; margin-right: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>🎁 Wishlist</h1>
+
+  <div id="login">
+    <h2>Přihlášení</h2>
+    <form id="login-form">
+      <input type="email" name="email" placeholder="Email" required><br>
+      <input type="password" name="password" placeholder="Heslo" required><br>
+      <button type="submit">Přihlásit se</button>
+    </form>
+  </div>
+
+  <div id="logout" style="display:none;">
+    <button id="logout-btn">Odhlásit se</button>
+  </div>
+
+  <div id="wishlist"></div>
 </body>
 </html>
