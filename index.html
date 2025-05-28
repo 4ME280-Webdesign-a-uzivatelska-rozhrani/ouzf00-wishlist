@@ -23,12 +23,7 @@
     <h3>Přihlášení</h3>
     <input id="email" placeholder="Email">
     <input id="password" type="password" placeholder="Heslo">
-    <button onclick="login()">Přihlásit se</button>
-
-    <h3>Nebo registrace</h3>
-    <input id="reg-email" placeholder="Email">
-    <input id="reg-password" type="password" placeholder="Heslo">
-    <button onclick="register()">Registrovat</button>
+    <button onclick="login()">Řihlásit se</button>
   </div>
 
   <div id="wishlist" style="display:none">
@@ -59,14 +54,6 @@
     const db = firebase.database();
     const auth = firebase.auth();
     let currentUserId = null;
-
-    function register() {
-      const email = document.getElementById('reg-email').value.trim();
-      const password = document.getElementById('reg-password').value.trim();
-      auth.createUserWithEmailAndPassword(email, password)
-        .then(() => login())
-        .catch(err => alert("Registrace selhala: " + err.message));
-    }
 
     function login() {
       const email = document.getElementById('email').value.trim();
